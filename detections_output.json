@@ -1,0 +1,11 @@
+{
+  "frames": {
+    "0": [
+      {"bbox": [100, 150, 300, 450], "class": "cashier", "confidence": 0.92}
+    ],
+    "30": [
+      {"bbox": [120, 160, 290, 440], "class": "cashier", "confidence": 0.89},
+      {"bbox": [350, 400, 420, 480], "class": "unauthorized_item", "confidence": 0.85}
+    ]
+  }
+}
