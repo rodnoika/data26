@@ -7,7 +7,7 @@ from statistics import median
 P = dict(
     person_score=0.5, person_min_h=0.07, person_min_w=0.10, desk_margin=0.01,  # box must end below the desk top line
     seat_above=0.08,                       # seated: box centre no higher than this above the desk top
-    away_min=3.0, end_win=3.0, screen_unlocked=0.2, screen_white=0.09,
+    away_min=3.0, end_win=3.0, leave_dist=0.15, leave_back=1.0, screen_unlocked=0.2, screen_white=0.09,
     smooth=3,                              # median window (samples) for people count
     thr=dict(money=0.30, bag=0.30, personal=0.28, docs=0.22, drink=0.25),
     item_min_frac=0.5,                     # share of frames in the window with the item
@@ -78,6 +78,44 @@ def _tracks(frames, H, W):
     return tracks
 
 
+def _leave_time(fr, H, W, ts, cnt, i0, i1):
+    """When a 'left the workplace' violation becomes one: the cashier walks away from where she worked (standing up
+    and working at the safe is not leaving). = first moment she is > leave_dist*W from her working position and
+    stays away >= 2 s, minus leave_back s (the start of the walk). Falls back to the stand-up time."""
+    import math
+    pre = [b for f in fr[max(0, i0 - 8):i0] for b in _seated(f, H)]
+    if not pre:
+        return ts[i0]
+    home = (median((b[0] + b[2]) / 2 for b in pre), median((b[1] + b[3]) / 2 for b in pre))
+    far = []
+    for k in range(i0, i1 + 1):
+        ps = _people(fr[k], H)
+        far.append(cnt[k] == 0 or (bool(ps) and min(math.dist(((b[0] + b[2]) / 2, (b[1] + b[3]) / 2), home)
+                                                    for b in ps) > P["leave_dist"] * W))
+    sp = _spans(far, ts[i0:i1 + 1], 2.0)
+    return max(ts[i0], sp[0][0] - P["leave_back"]) if sp else ts[i0]
+
+
+def _rest_time(fr, i0, i1, boxes_of, ts, move=25, hold=1.0):
+    """First frame in [i0, i1] from which an object's box stays within `move` px for `hold` s (it was put down)."""
+    for i in range(i0, i1 + 1):
+        b = boxes_of(fr[i])
+        if not b:
+            continue
+        c = ((b[0] + b[2]) / 2, (b[1] + b[3]) / 2); ok, seen = True, 0
+        for k in range(i + 1, i1 + 1):
+            if ts[k] - ts[i] > hold:
+                break
+            bb = boxes_of(fr[k])
+            if bb:
+                seen += 1
+                if abs((bb[0] + bb[2]) / 2 - c[0]) + abs((bb[1] + bb[3]) / 2 - c[1]) > move:
+                    ok = False; break
+        if ok and seen:
+            return ts[i]
+    return None
+
+
 def _smooth(xs, k):
     h = k // 2
     return [int(median(xs[max(0, i - h):i + h + 1])) for i in range(len(xs))]
@@ -146,23 +184,23 @@ def evaluate(sig):
         empty = [cnt[k] == 0 for k in range(i0, i1 + 1)]   # standing at the desk / safe is not "gone"
         if not (_spans(empty, ts[i0:i1 + 1], P["empty_min"]) or (i1 == len(ts) - 1 and empty[-1])):
             continue
-        # what is left behind is judged at the end of the away period (cash may be carried to the safe)
+        # what is left behind is judged at the end of the away period (cash may be carried to the safe);
+        # the violation is timestamped when she walks away, not when she stands up
+        tl = _leave_time(fr, H, sig["width"], ts, cnt, i0, i1)
         j1 = i1; j0 = max(i0, i1 - int(P["end_win"] / dt))
         if _present(fr, j0, j1, "money") or _present(fr, j0, j1, "bag"):
             g = "money" if _present(fr, j0, j1, "money") else "bag"
-            add("V1", t0, "Кассир покидает рабочее место, на столе остаются "
+            add("V1", tl, "Кассир покидает рабочее место, на столе остаются "
                 + ("наличные денежные средства" if g == "money" else "сумка с ценностями")
                 + " без присмотра.", [_item_box(fr[j1], g)])
         elif _present(fr, j0, j1, "docs") or _present(fr, j0, j1, "drink"):
-            add("V4", t0, "Кассир покидает рабочее место, на столе остаются документы / предметы, "
+            add("V4", tl, "Кассир покидает рабочее место, на столе остаются документы / предметы, "
                 "не убранные на хранение.", [_item_box(fr[j1], "docs") or _item_box(fr[j1], "drink")])
         scr = [f["screen_p"][0] for f in fr[j0:j1 + 1] if f.get("screen_p")]
         # bright white app content: SigLIP reads a darkened room (light switched off, Х-11) as "screen off"
         white = [f["screen"] for f in fr[i0:i1 + 1] if f.get("screen") is not None]
         if (scr and median(scr) >= P["screen_unlocked"]) or (white and median(white) >= P["screen_white"]):
-            t5 = t0 if scr and median(scr) >= P["screen_unlocked"] else next(
-                (f["t"] for f in fr[i0:i1 + 1] if (f.get("screen") or 0) >= P["screen_white"]), t0)   # lights off
-            add("V5", t5, "Кассир покидает рабочее место, экран рабочей станции остаётся разблокированным "
+            add("V5", tl, "Кассир покидает рабочее место, экран рабочей станции остаётся разблокированным "
                 "(видно открытое приложение).", [fr[j1]["laptop"]])
 
     # --- cashier left the room with the key still in the safe lock (fine-tuned key detector) ---
@@ -174,7 +212,7 @@ def evaluate(sig):
             ks = [fr[k]["key"][0] if fr[k].get("key") else 0.0 for k in gone]
             if len(gone) * dt >= P["key_gone_min"] and median(ks) >= P["key_score"]:
                 k0 = gone[0]
-                add("V2", ts[k0], "Кассир покидает помещение, ключ остаётся в замке сейфа "
+                add("V2", _leave_time(fr, H, sig["width"], ts, cnt, i0, i1), "Кассир покидает помещение, ключ остаётся в замке сейфа "
                     "(сейф не заперт / ключ не изъят).", [fr[k0]["key"][1] if fr[k0].get("key") else None],
                     extra_t=min(ts[-1], ts[k0] + 3))
                 break
@@ -197,7 +235,7 @@ def evaluate(sig):
         if t0 > ts[0] + 1e-6 and any(cnt[k] == 0 for k in range(i0, i1 + 1)):
             j0 = max(i0, i1 - int(P["end_win"] / dt))
             if median(so_s[j0:i1 + 1]) >= P["safe_open"]:
-                add("V2", t0, "Кассир покидает рабочее место, сейф остаётся открытым.",
+                add("V2", _leave_time(fr, H, sig["width"], ts, cnt, i0, i1), "Кассир покидает рабочее место, сейф остаётся открытым.",
                     [sig["layout"].get("safe", {}).get("box")])
 
     # --- outsider: a newcomer who stays, never sits and never comes to the desk ---
@@ -349,7 +387,7 @@ def evaluate(sig):
 
     # --- third person during service ---
     for t0, t1, i0, i1 in _spans([c >= 3 for c in cnt], ts, P["crowd_min"]):
-        add("V12", t0, "Во время обслуживания клиента в зоне кассы находится третье лицо.", _people(fr[i0], H))
+        add("V12", t0 + P["crowd_min"], "Во время обслуживания клиента в зоне кассы находится третье лицо.", _people(fr[i0], H))
         break
 
     # --- personal belongings on the desk ---
@@ -365,8 +403,15 @@ def evaluate(sig):
         return any(g == "personal" and sc >= P["thr"]["personal"] and not any(_iou(b, o) > 0.3 for o in fixed)
                    for g, sc, b in f["desk"])
     pers = [new_item(f) or new_bag(f) for f in fr]
+    def item_box(f):
+        c = [(sc, b) for g, sc, b in f["desk"] if g == "personal" and sc >= P["thr"]["personal"]
+             and not any(_iou(b, o) > 0.3 for o in fixed)]
+        c += [(sc, b) for n, sc, b in f["coco"] if n in ("handbag", "backpack") and sc >= 0.5
+              and not any(_iou(b, o) > 0.3 for o in fixed)]
+        return max(c)[1] if c else None
     for t0, t1, i0, i1 in _spans(pers, ts, P["personal_min"]):
-        add("V13", t0, "На рабочем месте кассира находятся личные вещи (сумка / верхняя одежда).",
+        t_rest = _rest_time(fr, i0, len(fr) - 1, item_box, ts, hold=2.0)   # carried in -> left on the desk
+        add("V13", t_rest if t_rest is not None else t0, "На рабочем месте кассира находятся личные вещи (сумка / верхняя одежда).",
             [_item_box(fr[i0], "personal")])
         break
 
@@ -384,7 +429,13 @@ def evaluate(sig):
                         hit = b
         run = run + 1 if hit else 0
         if run >= P["drink_min"]:
-            add("V14", ts[i - run + 1], "Кассир употребляет напиток на рабочем месте рядом с наличными.", [hit])
+            t_first = ts[i - run + 1]                     # confirmed; report when the cup was first raised
+            for k in range(i - run, max(-1, i - run - int(5 / dt)), -1):
+                if any(n in ("cup", "bottle", "wine glass") and sc >= P["drink_score"]
+                       and (b[1] + b[3]) / 2 < _CTX["desk_top"] - P["drink_raise"] * H
+                       for n, sc, b in fr[k]["coco"]):
+                    t_first = ts[k]
+            add("V14", t_first, "Кассир употребляет напиток на рабочем месте рядом с наличными.", [hit])
             break
 
     # --- short collector visit with a cash bag ---
@@ -396,7 +447,10 @@ def evaluate(sig):
             continue
         bag_i = next((k for k in range(i, j + 1) if _item_score(fr[k], "bag") >= P["thr"]["bag"]), None)
         if bag_i is not None:
-            add("V10", ts[bag_i], "Инкассатор передаёт сумку и покидает помещение через несколько секунд; "
+            t_down = _rest_time(fr, bag_i, j, lambda f: _item_box(f, "bag") if _item_score(f, "bag") >= P["thr"]["bag"]
+                                else None, ts, move=25, hold=1.0)
+            t_down = t_down if t_down is not None and t_down - ts[bag_i] >= 1.0 else ts[bag_i]
+            add("V10", t_down, "Инкассатор передаёт сумку и покидает помещение через несколько секунд; "
                 "проверка сопроводительных документов и пломбы не видна.", [_item_box(fr[bag_i], "bag")])
             break
 
@@ -427,7 +481,7 @@ def review_hints(sig, events):
         for t0, t1, i0, i1 in _spans([c == 0 for c in seated], ts, P["away_min"]):
             if t0 > ts[0] + 1e-6 and _spans([cnt[k] == 0 for k in range(i0, i1 + 1)], ts[i0:i1 + 1], P["empty_min"]) \
                     or (t0 > ts[0] + 1e-6 and i1 == len(ts) - 1 and cnt[i1] == 0):
-                hints.append(dict(type_id="R1", t=t0, focus=[sig["layout"].get("safe", {}).get("box")],
+                hints.append(dict(type_id="R1", t=_leave_time(fr, H, sig["width"], ts, cnt, i0, i1), focus=[sig["layout"].get("safe", {}).get("box")],
                                   desc="Кассир покидает рабочее место / помещение. Проверьте вручную: сейф заперт и "
                                        "ключ извлечён, дверь кассового помещения закрыта, ценности убраны."))
                 break

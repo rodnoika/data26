@@ -51,11 +51,28 @@ re-bundled note, cash to pocket: always answered "no", so useless).
 ```
 
 Current (40 unique training videos): verdict accuracy 1.00 (21/21 violations, 0 false positives / 19 clean),
-type correct on 20/21, median timecode error 1.5 s (13/21 within 2 s).
+type correct on 20/21, median timecode error 1.0 s (15/21 within 2 s).
 **These are training-set numbers.** Every threshold was tuned on these same videos and several rules / detectors
 were built from a single example, so expect lower accuracy on the jury's videos (different camera angle).
 With `SAFETY_NET=verdict` (every hint counts): 0.80, 18/21 flagged but 5 false positives. Speed ≈ 0.6–1.0× video length on RTX 5050
 (142 s video ≈ 93 s with the VLM loaded; ~7 GB of 8 GB VRAM), inside the 5-minute limit.
+
+## Timecodes: when the violation becomes a violation
+
+The labels mark the moment an action turns into a violation, not the first step of it (leaving cash on the desk
+is fine; leaving the room without it is not). Each rule reports that completing moment:
+
+| Rule | Reported moment |
+|---|---|
+| V1, V4, V5, V2 (key / safe), R1 | the cashier walks away from her working position (> 15 % of frame width away for ≥ 2 s, minus 1 s); standing up or working at the safe is not leaving |
+| V13 personal items | the bag / coat comes to rest on the desk (box stable ≥ 2 s), not when it is carried in |
+| V10 collector's bag | the bag is put down (stable ≥ 1 s) |
+| V12 third person | presence confirmed (start + 2 s) |
+| V14 drinking | the cup is first raised (up to 5 s before the confirmed sip) |
+
+Total timecode error on the 21 violation videos: 56.5 s → 30.5 s (median 2.0 → 1.0 s, within 2 s: 12 → 15 of 21);
+it also improved on the flip / warp / zoom sets, which were not used to choose the 15 % distance.
+Remaining large errors: Х-33 (4.5 s, outsider seen later than the door is left open), Х-17 (3.5 s), Х-26 (3 s).
 
 ## Implemented rules
 
