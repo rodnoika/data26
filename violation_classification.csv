@@ -1,0 +1,43 @@
+file,label,timecode_sec,type_id,violation_type,what_is_visible,legal_basis,confidence
+X-1,нарушение,22,V8,Suspicious banknote returned to client,"Cashier takes notes from the counter's reject pocket, examines one note against the light, then hands the notes back to the client instead of drawing up an act","NBRK Res. No.231 (29.11.2019) Rules of cash operations, para 59, 61",medium
+X-2,нарушение,10,V6,Cash accepted without client identification,"Client sits down and immediately hands over cash; no ID document is shown or checked (compare clean Х-3/Х-37 where ID is checked first)","NBRK Res. No.231, para 7, 19(1); AML Law No.191-IV (28.08.2009) art.5",high
+Х-3,без нарушения,,,,"Correct flow: ID shown and checked -> cash handed over -> counted in machine in client's presence",,
+Х-4,нарушение,57,V3,Previous client's cash left on desk when next client enters,"First client leaves; banknotes stay on the desk; next person enters and sits down while the cash is still out","NBRK Res. No.231, para 20 (2nd part), 22",high
+Х-5,без нарушения,,,,"Cash put in safe and safe closed before next client (correct counterpart of Х-4); file identical to Х-48",,
+Х-8,без нарушения,,,,"Not inspected in detail",,
+Х-10,без нарушения,,,,"Cashier counting cash alone at desk",,
+Х-11,нарушение,18,V5,Workstation left unlocked (also safe not secured),"Cashier switches off the light and leaves; the laptop screen stays unlocked (bright app window in the dark room); safe door appears ajar","ARDFM Res. No.53 (03.04.2026) info-security requirements; NBRK Res. No.231 para 20, 80",high
+Х-12,без нарушения,,,,"Not inspected in detail",,
+Х-13,нарушение,47,V9,Cash concealed on body / possible misappropriation,"After unpacking a cash-in-transit bag, cashier holds bundles at waist level and moves part of the cash toward her clothing before opening the safe","NBRK Res. No.231, para 12; Criminal Code RK art.189 (only as context, not a conclusion)",medium
+Х-14,без нарушения,,,,"Cashier opens cash bag, counts bundles at desk, stores them in safe (correct counterpart of Х-13/Х-15)",,
+Х-15,нарушение,15,V1,Cash/valuables left unattended,"Cash-in-transit bag with contents left on the desk; cashier walks out of the room","NBRK Res. No.231, para 20 (2nd part)",high
+Х-16,без нарушения,,,,"Collector enters, documents are handed over and checked, then bag is accepted and seal checked",,
+Х-17,нарушение,7,V10,Cash bag accepted from collector without document/seal check,"Collector enters, puts bag on the desk, cashier takes it, collector leaves within ~4 s; no covering document or seal check visible (compare Х-16)","NBRK Res. No.231, para 24, 106",high
+Х-18,нарушение,20,V12,Third person in service zone during operation,"While client 1 is being served (ID on desk), a second person comes up to the desk and the cashier hands an item to him","Law RK No.2444 On banks (31.08.1995) art.50 (bank secrecy); NBRK Res. No.231 para 22",medium
+Х-19,без нарушения,,,,"Not inspected in detail",,
+Х-20,нарушение,5,V2,Safe left open during work,"Cashier takes cash from the safe and sits down to count it with the safe door left wide open (compare Х-21 where she closes it)","NBRK Res. No.231, para 20 (2nd part), 80",high
+Х-21,без нарушения,,,,"Cash taken from safe, safe closed, then counting",,
+Х-22,нарушение,14,V2,Safe not secured when leaving workplace,"Cashier locks laptop, operates safe handle/key, walks out; key/handle state indicates safe not secured","NBRK Res. No.231, para 20 (2nd part), 80",medium
+Х-23,без нарушения,,,,"Laptop locked (lock screen), safe locked, then leaves",,
+Х-24,нарушение,8,V4,Documents/items left on desk when leaving,"Cashier leaves the room with a document folder and a cup left on the desk (compare Х-25 where they are put in the safe)","NBRK Res. No.231, para 12, 20; Law On banks art.50 if client documents",medium
+Х-25,без нарушения,,,,"Documents and cup put away, safe locked and checked, then leaves",,
+Х-26,нарушение,9,V1,Cash left unattended,"Cashier counts banknotes, leaves them on the desk and walks out of the room (compare Х-27)","NBRK Res. No.231, para 20 (2nd part)",high
+Х-27,без нарушения,,,,"Cash put into safe, safe locked, then leaves",,
+Х-28,нарушение,7,V5,Workstation left unlocked,"Cashier leaves; laptop screen keeps showing an open spreadsheet (compare Х-23/Х-29 lock screen)","ARDFM Res. No.53 (03.04.2026) info-security requirements (replaced NBRK Res. No.48, para 71(9)) - verify current paragraph",medium
+Х-29,без нарушения,,,,"Laptop locked before leaving",,
+Х-30,нарушение,13,V11,Unauthorized person enters cash room,"Second camera angle. Cashier sets up workplace; a man walks into the room behind her","NBRK Res. No.231, para 75; NBRK Res. No.14 (24.02.2020) para 16(1)",high
+Х-31,без нарушения,,,,"Cashier enters and closes the door behind her before starting work",,
+Х-32,нарушение,5,V11,Cash room door left open,"Cashier enters and goes straight to the desk without closing the door (compare Х-31)","NBRK Res. No.14, para 16(1), 19(1); NBRK Res. No.231 para 75",medium
+Х-33,нарушение,6,V11,Cash room door left open -> outsider at door,"Cashier enters without closing door; ~4 s later a man stands in the open doorway","NBRK Res. No.14, para 16(1); NBRK Res. No.231 para 75",high
+Х-34,нарушение,13,V7,Cash counted not in client's presence,"Client lays cash on desk and leaves the room while cashier is putting it into the counter","NBRK Res. No.231, para 20, 35",high
+Х-35,без нарушения,,,,"Not inspected in detail",,
+Х-37,без нарушения,,,,"Client shows ID, cash counted in client's presence",,
+Х-38,нарушение,33,V3,Previous client's cash left on desk when next client enters,"Client 1 leaves, banknotes remain on desk, client 2 enters (compare Х-39 where cash goes to safe first)","NBRK Res. No.231, para 20 (2nd part), 22",high
+Х-39,без нарушения,,,,"Cash stored in safe between clients",,
+Х-40,нарушение,17,V13,Personal belongings at cash workplace,"Cashier arrives in outerwear with a handbag and puts coat and bag on the cash desk next to the counter","NBRK Res. No.231, para 12",high
+Х-43,без нарушения,,,,"Not inspected in detail",,
+Х-44,нарушение,16,V8,Rejected/suspicious banknote put back into bundle,"Cashier pulls notes from counter reject pocket and re-inserts them into the bundle by hand without examination act","NBRK Res. No.231, para 59",low
+Х-45,без нарушения,,,,"Not inspected in detail",,
+Х-46,нарушение,11,V14,Food/drink at cash workplace,"Cashier drinks from a cup at the desk with banknotes lying on it","NBRK Res. No.231, para 12 (personal items outside cash unit)",medium
+Х-47,нарушение,68,V3,Previous client's cash left on desk when next client enters,"Same file as Х-4 (identical MD5), labeled at next client's interaction","NBRK Res. No.231, para 20 (2nd part), 22",high
+Х-48,без нарушения,,,,"Same file as Х-5 (identical MD5)",,
