@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Контроль кассовой дисциплины</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c2230; --muted:#667085; --line:#e4e7ec;
+          --accent:#1f6feb; --bad:#c62828; --badbg:#fdecec; --ok:#2e7d32; --okbg:#e8f5e9;
+          --hint:#8a5a00; --hintbg:#fff8e6; --hintline:#f0c36a; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#12151b; --card:#1b2029; --text:#e6e9ef; --muted:#9aa4b2; --line:#2c3340;
+            --accent:#4c8dff; --bad:#ff6b6b; --badbg:#3a1d1d; --ok:#66bb6a; --okbg:#1c3320;
+            --hint:#f2c062; --hintbg:#2b2416; --hintline:#7a5c22; }
+  }
+  * { box-sizing:border-box }
+  body { margin:0; font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--text) }
+  main { max-width:980px; margin:0 auto; padding:24px 16px 64px }
+  h1 { font-size:22px; margin:0 0 4px } .sub { color:var(--muted); margin:0 0 20px }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px }
+  .drop { border:2px dashed var(--line); border-radius:10px; padding:28px; text-align:center; cursor:pointer }
+  .drop.over { border-color:var(--accent) }
+  button { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:9px 18px; font:inherit; cursor:pointer }
+  button:disabled { opacity:.5; cursor:default }
+  .bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:12px }
+  .bar > div { height:100%; width:0; background:var(--accent); transition:width .4s }
+  .verdict { font-size:18px; font-weight:600; padding:12px 16px; border-radius:10px }
+  .verdict.bad { background:var(--badbg); color:var(--bad) } .verdict.ok { background:var(--okbg); color:var(--ok) }
+  .v h3 { margin:0 0 6px; font-size:16px } .tc { color:var(--accent); font-variant-numeric:tabular-nums; font-weight:600 }
+  .rule { color:var(--muted); font-size:13px; margin-top:6px }
+  .frames { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px }
+  .frames figure { margin:0 } .frames img { height:220px; max-width:100%; border-radius:8px; border:1px solid var(--line) }
+  .frames figcaption { font-size:12px; color:var(--muted) }
+  .note { font-size:13px; color:var(--muted) }
+  .vsub { font-size:14px; font-weight:400; opacity:.85; white-space:nowrap }
+  .badge { display:inline-block; font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; margin-bottom:8px }
+  .card.viol { border-left:4px solid var(--bad) } .card.viol .badge { background:var(--badbg); color:var(--bad) }
+  .card.hint { background:var(--hintbg); border:1px dashed var(--hintline); border-left:4px solid var(--hintline) }
+  .card.hint .badge { background:var(--hintline); color:var(--text) }
+  .card.hint h3 { color:var(--hint) } .card.hint .tc { color:var(--hint) }
+  .card.hint .frames img { height:150px; opacity:.9 }
+  .hint-head { margin:24px 0 8px; font-size:15px; color:var(--hint); font-weight:600 }
+</style>
+</head>
+<body>
+<main>
+  <h1>Контроль кассовой дисциплины</h1>
+  <p class="sub">Загрузите видеозапись (.mov). Сервис найдёт визуальные признаки возможных нарушений и покажет кадры, таймкоды и нормативные основания.</p>
+
+  <div class="card">
+    <div class="drop" id="drop">Перетащите файл сюда или нажмите, чтобы выбрать<br><span class="note" id="fname"></span></div>
+    <input type="file" id="file" accept=".mov,video/*" hidden>
+    <div style="margin-top:12px"><button id="go" disabled>Проверить</button> <span class="note" id="status"></span></div>
+    <div class="bar"><div id="prog"></div></div>
+  </div>
+
+  <div id="result"></div>
+  <p class="note">Результат — подсказка для проверяющего, а не юридическое или дисциплинарное заключение.</p>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let file = null;
+$("drop").onclick = () => $("file").click();
+$("file").onchange = e => pick(e.target.files[0]);
+$("drop").ondragover = e => { e.preventDefault(); $("drop").classList.add("over"); };
+$("drop").ondragleave = () => $("drop").classList.remove("over");
+$("drop").ondrop = e => { e.preventDefault(); $("drop").classList.remove("over"); pick(e.dataTransfer.files[0]); };
+function pick(f) { if (!f) return; file = f; $("fname").textContent = f.name; $("go").disabled = false; }
+
+const fmt = s => { const m = Math.floor(s / 60), r = (s % 60).toFixed(1).padStart(4, "0"); return `${m}:${r}`; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+$("go").onclick = async () => {
+  $("go").disabled = true; $("result").innerHTML = ""; $("prog").style.width = "3%";
+  $("status").textContent = "Загрузка…";
+  const fd = new FormData(); fd.append("file", file);
+  let r = await fetch("/ui/analyze", { method: "POST", body: fd });
+  if (!r.ok) { $("status").textContent = "Ошибка загрузки"; $("go").disabled = false; return; }
+  const { job_id } = await r.json();
+  $("status").textContent = "Анализ…";
+  while (true) {
+    await new Promise(res => setTimeout(res, 1500));
+    const j = await (await fetch(`/ui/jobs/${job_id}`)).json();
+    if (j.status === "processing") { $("prog").style.width = Math.max(5, (j.progress || 0) * 100) + "%"; continue; }
+    $("prog").style.width = "100%"; $("go").disabled = false;
+    if (j.status === "failed") { $("status").textContent = "Ошибка обработки: " + (j.error || ""); return; }
+    $("status").textContent = "Готово"; render(j); return;
+  }
+};
+
+// 1 момент, 2 момента, 5 моментов, 11 моментов, 21 момент
+const plural = (n, one, few, many) => {
+  const m10 = n % 10, m100 = n % 100;
+  return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many;
+};
+
+function render(j) {
+  const bad = j.verdict === "violation";
+  const hints = j.review_hints || [];
+  const sub = hints.length ? ` <span class="vsub">· ${hints.length} ${plural(hints.length, "момент", "момента", "моментов")} для проверки</span>` : "";
+  let h = `<div class="card"><div class="verdict ${bad ? "bad" : "ok"}">${bad ? "Обнаружены признаки возможных нарушений" : "Нарушение не обнаружено"}${sub}</div></div>`;
+  for (const v of j.violations) {
+    h += `<div class="card v viol"><span class="badge">Признак возможного нарушения</span>
+      <h3>${esc(v.type)} — <span class="tc">${fmt(v.timecode_sec)}</span></h3>
+      <div>${esc(v.rule ? v.description.split(" Основание:")[0] : v.description)}</div>
+      ${v.rule ? `<div class="rule">Основание: ${esc(v.rule)}</div>` : ""}
+      <div class="frames">${v.evidence_frames.map(f => `<figure><img src="data:image/jpeg;base64,${f.image_base64}"><figcaption>${fmt(f.timestamp_sec)}</figcaption></figure>`).join("")}</div></div>`;
+  }
+  if (hints.length) {
+    h += `<div class="hint-head">Моменты для проверки</div>
+      <p class="note" style="margin:0 0 10px">Автоматические правила не могут оценить эти моменты однозначно. Это не нарушения и на вердикт не влияют — проверьте их вручную.</p>`;
+    for (const v of hints) {
+      h += `<div class="card v hint"><span class="badge">Не нарушение — подсказка для проверки</span>
+        <h3>${esc(v.type.replace(/ — требуется проверка$/, ""))} — <span class="tc">${fmt(v.timecode_sec)}</span></h3>
+        <div>${esc(v.description.split(" Основание:")[0])}</div>
+        <div class="frames">${v.evidence_frames.map(f => `<figure><img src="data:image/jpeg;base64,${f.image_base64}"><figcaption>${fmt(f.timestamp_sec)}</figcaption></figure>`).join("")}</div></div>`;
+    }
+  }
+  $("result").innerHTML = h;
+}
+</script>
+</body>
+</html>

@@ -1,3 +1,19 @@
 /videos
 /eval_results
 *.mov
+
+# environment / editor
+.venv/
+__pycache__/
+*.pyc
+.claude/
+
+# organisers' data: may only be used within the hackathon (FAQ 6) - never publish
+open/
+*.docx
+
+# generated caches, uploads, results (derived from the videos)
+runtime/
+
+# fine-tuned weights (4 x 77 MB) - retrain with backend/tools/train_id.py or share separately
+backend/models/
